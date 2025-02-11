@@ -11,5 +11,8 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="KotlinJavaRuntime" level="project" />
+    <orderEntry type="library" name="jetbrains.kotlinx.coroutines.core.common" level="project" />
+    <orderEntry type="library" name="jetbrains.kotlinx.coroutines.android" level="project" />
+    <orderEntry type="library" name="jetbrains.kotlinx.coroutines.swing" level="project" />
   </component>
 </module>
