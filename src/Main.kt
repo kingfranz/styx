@@ -1,16 +1,8 @@
-import java.awt.Canvas
 import java.awt.Color
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Point
-import java.awt.geom.Point2D
-import java.awt.image.BufferStrategy
 import java.util.LinkedList
-import javax.swing.JFrame
-import javax.swing.RepaintManager
-import javax.swing.SwingConstants
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -39,7 +31,7 @@ suspend inline fun timer(ms: Long, pre: Boolean = false, block: () -> Unit) {
 
 class SpriteSegment(val x1: Int, val y1: Int, val x2: Int, val y2: Int, val color: Color = Color.BLACK)
 
-class Sprite(val width: Int, val height: Int) {
+class Sprite(width: Int, height: Int) {
     val spriteLength = 10
     val spriteSize = 250
     val stepSize = 10
