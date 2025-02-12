@@ -8,9 +8,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import java.awt.Canvas
+import java.awt.Dimension
+import java.awt.event.KeyEvent
+import java.awt.event.KeyListener
 import java.time.Duration
 import java.time.Instant
-import javax.swing.JWindow
+import javax.swing.JFrame
+import javax.swing.JPanel
+
+///////////////////////////////////////////////////////////////////////////////
 
 suspend inline fun timer(dur: Duration, pre: Boolean = false, block: () -> Unit) {
     timer(dur.toMillis(), pre, block)
@@ -29,21 +38,31 @@ suspend inline fun timer(ms: Long, pre: Boolean = false, block: () -> Unit) {
     }
 }
 
-class SpriteSegment(val x1: Int, val y1: Int, val x2: Int, val y2: Int, val color: Color = Color.BLACK)
+///////////////////////////////////////////////////////////////////////////////
+
+class SpriteSegment(val x1: Int,
+                    val y1: Int,
+                    val x2: Int,
+                    val y2: Int,
+                    val color: Color = Color.BLACK)
+
+///////////////////////////////////////////////////////////////////////////////
 
 class Sprite(width: Int, height: Int) {
     val spriteLength = 10
     val spriteSize = 250
     val stepSize = 10
-    val spriteSpeed: Int = 10 // per second
+    val spriteSpeed: Int = 20 // per second
     val maxAngle = Math.toRadians(30.0)
     val tail = LinkedList<SpriteSegment>()
+    val tailMutex = Mutex(false)
     var currentPoint = Point(0, 0)
     var currentAngle = 0.0
-    val minX = width / -2
-    val minY = height / -2
-    val maxX = width / 2
-    val maxY = height / 2
+    val edgeSz = 20
+    val minX = width / -2 + edgeSz
+    val minY = height / -2 + edgeSz
+    val maxX = width / 2 - edgeSz
+    val maxY = height / 2 - edgeSz
 
     fun newAngle(a: Double): Double {
         return (a + Math.random() * 2 * maxAngle - maxAngle) % (2 * Math.PI)
@@ -79,11 +98,13 @@ class Sprite(width: Int, height: Int) {
         return na
     }
 
-    fun store() {
+    suspend fun store() {
+        tailMutex.lock()
         tail.addFirst(mkSegment(currentPoint, currentAngle, spriteSize, rndClr()))
         if (tail.size > spriteLength) {
             tail.removeLast()
         }
+        tailMutex.unlock()
     }
 
     fun getEq(p1: Point, p2: Point): Pair<Double, Double> {
@@ -165,12 +186,33 @@ class Sprite(width: Int, height: Int) {
         }
     }
 
-    fun step() {
+    suspend fun step() {
         if(!handleWall()) {
             currentAngle = normalizeAngle(newAngle(currentAngle))
         }
         currentPoint = newPoint(currentPoint, currentAngle, stepSize)
         store()
+    }
+
+    suspend fun draw(g: Graphics2D) {
+        g.clipRect(minX, minY, maxX-minX, maxY-minY)
+        g.stroke = java.awt.BasicStroke(2.0f)
+        tailMutex.lock()
+        for (segment in tail) {
+            g.color = segment.color
+            g.drawLine(segment.x1, segment.y1, segment.x2, segment.y2)
+        }
+        tailMutex.unlock()
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+class Arena(val aWidth: Int, val aHeight: Int): Canvas() {
+    val sprite = Sprite(aWidth, aHeight)
+
+    override fun getPreferredSize(): Dimension? {
+        return Dimension(aWidth, aHeight)
     }
 
     fun drawAxis(g: Graphics2D) {
@@ -181,22 +223,17 @@ class Sprite(width: Int, height: Int) {
         g.drawLine(0, 0, 0, 100)
     }
 
-    fun draw(g: Graphics2D) {
+    fun drawEdge(g: Graphics2D) {
+        g.color = Color.BLACK
         g.stroke = java.awt.BasicStroke(2.0f)
-        for (segment in tail) {
-            g.color = segment.color
-            g.drawLine(segment.x1, segment.y1, segment.x2, segment.y2)
-        }
+        g.drawLine(sprite.minX, sprite.minY, sprite.maxX, sprite.minY)
+        g.drawLine(sprite.maxX, sprite.minY, sprite.maxX, sprite.maxY)
+        g.drawLine(sprite.maxX, sprite.maxY, sprite.minX, sprite.maxY)
+        g.drawLine(sprite.minX, sprite.maxY, sprite.minX, sprite.minY)
     }
-}
 
-class Field(cWidth: Int, cHeight: Int): JWindow() {
-    val sprite = Sprite(cWidth, cHeight)
-
-    init {
-        background = Color.WHITE
-        setSize(cWidth, cHeight)
-        isVisible = true
+    override fun update(g: Graphics) {
+        runBlocking { sprite.step() }
     }
 
     override fun paint(g: Graphics) {
@@ -205,11 +242,77 @@ class Field(cWidth: Int, cHeight: Int): JWindow() {
         g2d.fillRect(0, 0, width, height)
         g2d.translate(width/2, height/2)
         g2d.scale(1.0, -1.0)
-        sprite.step()
-        sprite.draw(g2d)
+        drawEdge(g2d)
+        runBlocking { sprite.draw(g2d) }
         g2d.dispose()
     }
+
+    suspend fun run(): Unit = coroutineScope {
+        createBufferStrategy(2)
+        val strategy = bufferStrategy
+        launch(Dispatchers.Default + CoroutineName("clock.tick")) {
+            timer(Duration.ofMillis(1000L / sprite.spriteSpeed)) {
+                do {
+                    do {
+                        val g = strategy.drawGraphics
+                        try {
+                            update(g)
+                            paint(g)
+                        } finally {
+                            g.dispose()
+                        }
+                    } while (strategy.contentsRestored())
+                    strategy.show()
+                } while (strategy.contentsLost())
+            }
+        }
+    }
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+class GameWin(val cWidth: Int, val cHeight: Int): JFrame() {
+    val arena = Arena(cWidth, cHeight)
+
+    init {
+        background = Color.WHITE
+        //setSize(cWidth, cHeight)
+        isVisible = true
+        setDefaultCloseOperation(EXIT_ON_CLOSE)
+        add(arena)
+        pack()
+        addKeyListener(object : KeyListener {
+            override fun keyTyped(e: KeyEvent) {
+                when (e.keyChar) {
+                    'q' -> System.exit(0)
+                }
+            }
+
+            override fun keyPressed(e: KeyEvent) {
+                println("keyPressed: ${e.keyChar.toInt()}")
+            }
+
+            override fun keyReleased(e: KeyEvent) {
+                println("keyReleased: ${e.keyChar.toInt()}")
+            }
+        })
+    }
+
+    override fun getPreferredSize(): Dimension? {
+        return Dimension(cWidth, cHeight)
+    }
+
+    override fun paint(g: Graphics) {
+        super.paint(g)
+        arena.repaint()
+    }
+
+    suspend fun run(): Unit = coroutineScope {
+        arena.run()
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 suspend fun main(): Unit = coroutineScope {
     // Set frame size
@@ -217,19 +320,6 @@ suspend fun main(): Unit = coroutineScope {
     val height = 600
 
     // Add a label to the frame
-    val canvas = Field(width, height)
-    canvas.createBufferStrategy(2)
-    val strategy = canvas.bufferStrategy
-    launch(Dispatchers.Default + CoroutineName("clock.tick")) {
-        timer(Duration.ofMillis(1000L/canvas.sprite.spriteSpeed)) {
-            do {
-                do {
-                    val g = strategy.drawGraphics
-                    canvas.paint(g)
-                    g.dispose()
-                } while (strategy.contentsRestored())
-                strategy.show()
-            } while (strategy.contentsLost())
-        }
-    }
+    val win = GameWin(width, height)
+    win.run()
 }
