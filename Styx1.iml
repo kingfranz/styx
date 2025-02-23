@@ -14,5 +14,19 @@
     <orderEntry type="library" name="jetbrains.kotlinx.coroutines.core.common" level="project" />
     <orderEntry type="library" name="jetbrains.kotlinx.coroutines.android" level="project" />
     <orderEntry type="library" name="jetbrains.kotlinx.coroutines.swing" level="project" />
+    <orderEntry type="library" name="googlecode.mavennatives.maven.nativedependencies.plugin" level="project" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="file://$MODULE_DIR$/jinput" />
+        </CLASSES>
+        <JAVADOC />
+        <NATIVE>
+          <root url="file://$MODULE_DIR$/jinput" />
+        </NATIVE>
+        <SOURCES />
+        <jarDirectory url="file://$MODULE_DIR$/jinput" recursive="false" />
+      </library>
+    </orderEntry>
   </component>
 </module>
