@@ -1,4 +1,5 @@
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -189,7 +190,7 @@ class Player(val parent: iArena) {
     var normalSpeed: Int = 2
     var fastSpeed: Int = 3
     val pos = PlayerPos()
-    val joystick = Joystick()
+    val jsProducer = JoystickData()
 
     suspend fun reset() {
         pos.reset()
@@ -245,65 +246,87 @@ class Player(val parent: iArena) {
         }
     }
 
-    suspend fun runJoystick(): Unit = coroutineScope {
-        launch {
-            var draw = false
-            var special = false
+    inner class JoystickData {
+        val joystick = Joystick()
+        var jsDir: Direction? = null
+        var draw = false
+        var special = false
+
+        suspend fun runJoystick(): Unit = coroutineScope {
             var xBlocked = false
             var yBlocked = false
-            var lastCmd: JoystickEvent? = null
-            while(true) {
-                var jsEvent: JoystickEvent? = withTimeoutOrNull(10L) { joystick.joystickChannel.receive() }
-                if (jsEvent == null) {
-                    if (lastCmd != null) {
-                        jsEvent = lastCmd
-                    } else {
+
+            launch {
+                while (true) {
+                    var jsEvent: JoystickEvent? = withTimeoutOrNull(10000L) { joystick.joystickChannel.receive() }
+                    if (jsEvent == null) {
+                        println("timeout ${jsDir} ${xBlocked} ${yBlocked}")
+                        jsDir = null
+                        xBlocked = false
+                        yBlocked = false
                         continue
                     }
+                    when (jsEvent.name) {
+                        "rx" -> {
+                            if (xBlocked)
+                                continue
+                            if (jsEvent.value == 0.0f) {
+                                println("rx: 0 ${jsDir} ${xBlocked} ${yBlocked}")
+                                yBlocked = false
+                                jsDir = null
+                            } else if (!xBlocked) {
+                                yBlocked = true
+                                if (jsEvent.value < 0.0) {
+                                    jsDir = Direction.LEFT
+                                } else {
+                                    jsDir = Direction.RIGHT
+                                }
+                            }
+                        }
+
+                        "ry" -> {
+                            if (yBlocked)
+                                continue
+                            if (jsEvent.value == 0.0f) {
+                                println("ry: 0 ${jsDir} ${xBlocked} ${yBlocked}")
+                                xBlocked = false
+                                jsDir = null
+                            } else if (!yBlocked) {
+                                xBlocked = true
+                                if (jsEvent.value < 0.0) {
+                                    jsDir = Direction.UP
+                                } else {
+                                    jsDir = Direction.DOWN
+                                }
+                            }
+                        }
+
+                        "z" -> {
+                            if (jsEvent.value > 0.5) {
+                                draw = true
+                            } else if (jsEvent.value < -0.5) {
+                                draw = false
+                            }
+                        }
+                        "rz" -> {
+                            if (jsEvent.value > 0.5) {
+                                special = true
+                            } else if (jsEvent.value < -0.5) {
+                                special = false
+                            }
+                        }
+                    }
                 }
-                when(jsEvent.name) {
-                    "rx" -> {
-                        if (jsEvent.value == 0.0f) {
-                            yBlocked = false
-                            lastCmd = null
-                        } else if (!xBlocked) {
-                            yBlocked = true
-                            if (jsEvent.value < 0.0) {
-                                move(Direction.LEFT, special, draw)
-                            } else {
-                                move(Direction.RIGHT, special, draw)
-                            }
-                            lastCmd = jsEvent
-                        }
+            }
+        }
+
+        suspend fun makeMoves(): Unit = coroutineScope {
+            launch {
+                while (true) {
+                    if (jsDir != null) {
+                        move(jsDir!!, special, draw)
                     }
-                    "ry" -> {
-                        if (jsEvent.value == 0.0f) {
-                            xBlocked = false
-                            lastCmd = null
-                        } else if (!yBlocked) {
-                            xBlocked = true
-                            if (jsEvent.value < 0.0) {
-                                move(Direction.UP, special, draw)
-                            } else {
-                                move(Direction.DOWN, special, draw)
-                            }
-                            lastCmd = jsEvent
-                        }
-                    }
-                    "z" -> {
-                        if (jsEvent.value > 0.5) {
-                            draw = true
-                        } else if (jsEvent.value < -0.5) {
-                            draw = false
-                        }
-                    }
-                    "rz" -> {
-                        if (jsEvent.value > 0.5) {
-                            special = true
-                        } else if (jsEvent.value < -0.5) {
-                            special = false
-                        }
-                    }
+                    delay(20)
                 }
             }
         }

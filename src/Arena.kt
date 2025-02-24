@@ -29,6 +29,10 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
 
     init {
         isFocusable = true
+        preferredSize = java.awt.Dimension(1000+2*edgeSz, 1000+2*edgeSz)
+        minimumSize = java.awt.Dimension(1000+2*edgeSz, 1000+2*edgeSz)
+        maximumSize = java.awt.Dimension(1000+2*edgeSz, 1000+2*edgeSz)
+        size = java.awt.Dimension(1000+2*edgeSz, 1000+2*edgeSz)
         addKeyListener(object : KeyListener {
             override fun keyTyped(e: KeyEvent) {
                 when (e.keyChar) {
@@ -200,8 +204,9 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
     }
 
     suspend fun run(): Unit = coroutineScope {
-        launch { player.joystick.run() }
-        launch { player.runJoystick() }
+        launch { player.jsProducer.joystick.run() }
+        launch { player.jsProducer.runJoystick() }
+        launch { player.jsProducer.makeMoves() }
         createBufferStrategy(2)
         val strategy = bufferStrategy
         launch(Dispatchers.Default + CoroutineName("Arena")) {

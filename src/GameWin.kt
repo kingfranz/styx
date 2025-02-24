@@ -41,9 +41,9 @@ class GameWin(val cWidth: Int, val cHeight: Int): JFrame() {
         })
     }
 
-    override fun getPreferredSize(): Dimension? {
-        return Dimension(cWidth, cHeight)
-    }
+//    override fun getPreferredSize(): Dimension? {
+//        return Dimension(cWidth, cHeight)
+//    }
 
     override fun paint(g: Graphics) {
         super.paint(g)
