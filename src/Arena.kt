@@ -9,9 +9,11 @@ import java.awt.Canvas
 import java.awt.Color
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Point
 import java.awt.Polygon
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
+import java.awt.image.BufferedImage
 import java.util.LinkedList
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -21,18 +23,22 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
     val sprite = Sprite(this, edgeSz)
     val player = Player(this)
     val keys = mutableMapOf<Int, Boolean>()
-    val lines = LinkedList<Pair<Int, Int>>() // (x, y)
+    val lines = LinkedList<Point>() // (x, y)
     var xArr: IntArray = IntArray(1000) { i -> i }
     var yArr: IntArray = IntArray(1000) { i -> i }
     var arrSize = 0
     val areas = LinkedList<Polygon>()
+    val arenaWalls = Walls()
+    val arenaSz = 1000
+    val areaMask = BufferedImage(arenaSz, arenaSz, BufferedImage.TYPE_BYTE_GRAY)
+    val areaG = areaMask.createGraphics()
 
     init {
         isFocusable = true
-        preferredSize = java.awt.Dimension(1000+2*edgeSz, 1000+2*edgeSz)
-        minimumSize = java.awt.Dimension(1000+2*edgeSz, 1000+2*edgeSz)
-        maximumSize = java.awt.Dimension(1000+2*edgeSz, 1000+2*edgeSz)
-        size = java.awt.Dimension(1000+2*edgeSz, 1000+2*edgeSz)
+        preferredSize = java.awt.Dimension(arenaSz+2*edgeSz, arenaSz+2*edgeSz)
+        minimumSize = java.awt.Dimension(arenaSz+2*edgeSz, arenaSz+2*edgeSz)
+        maximumSize = java.awt.Dimension(arenaSz+2*edgeSz, arenaSz+2*edgeSz)
+        size = java.awt.Dimension(arenaSz+2*edgeSz, arenaSz+2*edgeSz)
         addKeyListener(object : KeyListener {
             override fun keyTyped(e: KeyEvent) {
                 when (e.keyChar) {
@@ -66,6 +72,7 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
                 keys[e.keyCode] = false
             }
         })
+        runBlocking { reset() }
         requestFocus()
     }
 
@@ -74,6 +81,16 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
         player.reset()
         clearLines()
         clearAreas()
+        arenaWalls.addWall(HorizontalWall(0, 0, arenaSz-1)) // top
+        arenaWalls.addWall(VerticalWall(arenaSz-1, 0, arenaSz-1)) // right
+        arenaWalls.addWall(HorizontalWall(arenaSz-1, 0, arenaSz-1)) // bottom
+        arenaWalls.addWall(VerticalWall(0, 0, arenaSz-1)) // left
+        areaG.color = Color.BLACK
+        areaG.fillRect(0, 0, arenaSz, arenaSz)
+    }
+
+    override fun getWalls(): Walls {
+        return arenaWalls
     }
 
     override fun showSpeed(value: Int) {
@@ -96,9 +113,9 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
         return areas
     }
 
-    override fun addLeg(p: Pair<Int, Int>) {
+    override fun addLeg(p: Point) {
         if (arrSize > 0) {
-            if (xArr[arrSize-1] == p.first && yArr[arrSize-1] == p.second) {
+            if (xArr[arrSize-1] == p.x && yArr[arrSize-1] == p.y) {
                 return
             }
             if (arrSize > 1) {
@@ -106,12 +123,12 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
                 val y1 = yArr[arrSize - 2]
                 val x2 = xArr[arrSize - 1]
                 val y2 = yArr[arrSize - 1]
-                val x3 = p.first
-                val y3 = p.second
+                val x3 = p.x
+                val y3 = p.y
 
                 if ((y2 - y1) * (x3 - x2) == (y3 - y2) * (x2 - x1)) {
-                    xArr[arrSize - 1] = p.first
-                    yArr[arrSize - 1] = p.second
+                    xArr[arrSize - 1] = p.x
+                    yArr[arrSize - 1] = p.y
                     lines.removeLast()
                     lines.add(p)
                     return
@@ -122,8 +139,8 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
             xArr += IntArray(1000) { i -> i }
             yArr += IntArray(1000) { i -> i }
         }
-        xArr[arrSize] = p.first
-        yArr[arrSize] = p.second
+        xArr[arrSize] = p.x
+        yArr[arrSize] = p.y
         arrSize++
         lines.add(p)
     }
@@ -141,12 +158,33 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
     }
 
     override fun mkArea() {
-        val xs = IntArray(lines.size) { i -> lines[i].first }
-        val ys = IntArray(lines.size) { i -> lines[i].second }
+        val xs = IntArray(lines.size) { i -> lines[i].x }
+        val ys = IntArray(lines.size) { i -> lines[i].y }
         val poly = Polygon(xs, ys, lines.size)
         areas.add(poly)
+        areaG.color = Color.WHITE
+        areaG.fillPolygon(poly)
+        val tmpWall = Walls()
+        for(i in 0 until lines.size-1) {
+            tmpWall.addWall(Wall(lines[i], lines[i+1]))
+        }
+        arenaWalls.addWalls(tmpWall)
         lines.clear()
         arrSize = 0
+    }
+
+    override fun isPosAvailable(p: Point): Boolean {
+        try {
+            if(p.x >= 0 && p.x < arenaSz &&
+                   p.y >= 0 && p.y < arenaSz) {
+                val aa = areaMask.getRGB(p.x, p.y) and 0x00ffffff
+                return aa == 0
+            }
+            return false
+                    //areaMask.getRGB(p.x, p.y) == 0
+        } catch (e: Exception) {
+            return false
+        }
     }
 
     fun drawAxis(g: Graphics2D) {
@@ -204,9 +242,8 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
     }
 
     suspend fun run(): Unit = coroutineScope {
-        launch { player.jsProducer.joystick.run() }
-        launch { player.jsProducer.runJoystick() }
-        launch { player.jsProducer.makeMoves() }
+        launch { player.joystick.run() }
+        launch { player.makeMoves() }
         createBufferStrategy(2)
         val strategy = bufferStrategy
         launch(Dispatchers.Default + CoroutineName("Arena")) {

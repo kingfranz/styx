@@ -1,23 +1,22 @@
-import kotlinx.coroutines.channels.Channel
+import Player.Direction
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import net.java.games.input.Controller
 import net.java.games.input.Event
 import net.java.games.input.EventQueue
-
-data class JoystickEvent(val name: String, val value: Float)
+import net.java.games.input.ControllerEnvironment
 
 class Joystick() {
-    var controller: Controller? = null
-    var queue: EventQueue? = null
-    var event = Event()
-    val joystickChannel = Channel<JoystickEvent>(10)
+    private var controller: Controller? = null
+    private var queue: EventQueue = EventQueue(100)
+    var jsDir: Direction? = null
+    var draw = false
+    var special = false
 
     init {
-        val controllers = net.java.games.input.ControllerEnvironment.getDefaultEnvironment().controllers
+        val controllers = ControllerEnvironment.getDefaultEnvironment().controllers
         for (ctrl in controllers) {
             if (ctrl.name == "8BitDo Ultimate 2C Wireless Controller") {
                 controller = ctrl
@@ -43,11 +42,76 @@ class Joystick() {
     }
 
     suspend fun run(): Unit = coroutineScope {
+        var xBlocked = false
+        var yBlocked = false
+        var event: Event = Event()
         launch {
             while (true) {
                 controller!!.poll()
+                //val toOrRet = queue.getNextEvent(event)
+                // while (withTimeoutOrNull(5000L) { queue.getNextEvent(event) } != null) {
                 while (queue!!.getNextEvent(event)) {
-                    joystickChannel.send(JoystickEvent(event.component.name, event.value))
+                    /*
+                if (toOrRet == null || toOrRet == false) {
+                    println("timeout ${jsDir} ${xBlocked} ${yBlocked}")
+                    jsDir = null
+                    xBlocked = false
+                    yBlocked = false
+                    delay(10)
+                    continue
+                }
+*/
+                    when (event.component.name) {
+                        "rx" -> {
+                            if (xBlocked)
+                                continue
+                            if (event.value == 0.0f) {
+                                println("rx: 0 ${jsDir} ${xBlocked} ${yBlocked}")
+                                yBlocked = false
+                                jsDir = null
+                            } else if (!xBlocked) {
+                                yBlocked = true
+                                if (event.value < 0.0) {
+                                    jsDir = Direction.LEFT
+                                } else {
+                                    jsDir = Direction.RIGHT
+                                }
+                            }
+                        }
+
+                        "ry" -> {
+                            if (yBlocked)
+                                continue
+                            if (event.value == 0.0f) {
+                                println("ry: 0 ${jsDir} ${xBlocked} ${yBlocked}")
+                                xBlocked = false
+                                jsDir = null
+                            } else if (!yBlocked) {
+                                xBlocked = true
+                                if (event.value < 0.0) {
+                                    jsDir = Direction.UP
+                                } else {
+                                    jsDir = Direction.DOWN
+                                }
+                            }
+                        }
+
+                        "z" -> {
+                            if (event.value > 0.5) {
+                                draw = true
+                            } else if (event.value < -0.5) {
+                                draw = false
+                            }
+                        }
+
+                        "rz" -> {
+                            if (event.value > 0.5) {
+                                special = true
+                            } else if (event.value < -0.5) {
+                                special = false
+                            }
+                        }
+                    }
                 }
                 delay(10)
             }

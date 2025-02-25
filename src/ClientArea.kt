@@ -88,7 +88,7 @@ class ClientArea(): JPanel(), iArena {
         locLbl.text = value
     }
 
-    override fun addLeg(p: Pair<Int, Int>) {
+    override fun addLeg(p: Point) {
         TODO("Not yet implemented")
     }
 
@@ -106,6 +106,14 @@ class ClientArea(): JPanel(), iArena {
     }
 
     override fun numLegs(): Int {
+        TODO("Not yet implemented")
+    }
+
+    override fun getWalls(): Walls {
+        TODO("Not yet implemented")
+    }
+
+    override fun isPosAvailable(p: Point): Boolean {
         TODO("Not yet implemented")
     }
 
