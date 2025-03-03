@@ -2,6 +2,8 @@ import Player.Direction
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import net.java.games.input.Controller
 import net.java.games.input.Event
@@ -14,6 +16,7 @@ class Joystick() {
     var jsDir: Direction? = null
     var draw = false
     var special = false
+    val mutex = Mutex(false)
 
     init {
         val controllers = ControllerEnvironment.getDefaultEnvironment().controllers
@@ -41,80 +44,127 @@ class Joystick() {
         return "${controller!!.name} at $nano: $compName $tmp"
     }
 
+    fun v2s(v: Float, off: String, low: String, high: String): String {
+        return if (v < -0.5) low else if (v > 0.5) high else if (v == 0.0f) off else ""
+    }
+
     suspend fun run(): Unit = coroutineScope {
-        var xBlocked = false
-        var yBlocked = false
-        var event: Event = Event()
-        launch {
-            while (true) {
-                controller!!.poll()
-                //val toOrRet = queue.getNextEvent(event)
-                // while (withTimeoutOrNull(5000L) { queue.getNextEvent(event) } != null) {
-                while (queue!!.getNextEvent(event)) {
-                    /*
-                if (toOrRet == null || toOrRet == false) {
-                    println("timeout ${jsDir} ${xBlocked} ${yBlocked}")
-                    jsDir = null
-                    xBlocked = false
-                    yBlocked = false
-                    delay(10)
-                    continue
-                }
-*/
-                    when (event.component.name) {
-                        "rx" -> {
-                            if (xBlocked)
-                                continue
-                            if (event.value == 0.0f) {
-                                println("rx: 0 ${jsDir} ${xBlocked} ${yBlocked}")
-                                yBlocked = false
-                                jsDir = null
-                            } else if (!xBlocked) {
-                                yBlocked = true
-                                if (event.value < 0.0) {
-                                    jsDir = Direction.LEFT
-                                } else {
-                                    jsDir = Direction.RIGHT
+        try {
+            var xBlocked = false
+            var yBlocked = false
+            launch {
+                while (true) {
+                    try {
+                        var event = Event()
+                        controller!!.poll()
+                        while (queue!!.getNextEvent(event)) {
+                            var action = ""
+                            //println("${event.component.name} ${event.value}")
+                            when (event.component.name) {
+                                "rx" -> {
+                                    action = v2s(event.value * 10, "IDLE", "X-", "X+")
+                                }
+
+                                "ry" -> {
+                                    action = v2s(event.value * 10, "IDLE", "Y-", "Y+")
+                                }
+
+                                "X" -> {
+                                    action = v2s(event.value, "IDLE", "", "X-")
+                                }
+
+                                "Y" -> {
+                                    action = v2s(event.value, "IDLE", "", "Y-")
+                                }
+
+                                "A" -> {
+                                    action = v2s(event.value, "IDLE", "", "Y+")
+                                }
+
+                                "B" -> {
+                                    action = v2s(event.value, "IDLE", "", "X+")
+                                }
+
+                                "x" -> {
+                                    action = v2s(event.value * 10, "IDLE", "X-", "X+")
+                                }
+
+                                "y" -> {
+                                    action = v2s(event.value * 10, "IDLE", "Y-", "Y+")
+                                }
+
+                                "pov" -> when (event.value) {
+                                    in 0.1f..0.25f -> action = "Y+"
+                                    in 0.25f..0.5f -> action = "X+"
+                                    in 0.5f..0.75f -> action = "Y-"
+                                    in 0.75f..1.0f -> action = "X-"
+                                    else -> action = "IDLE"
+                                }
+
+                                "z" -> {
+                                    action = v2s(event.value, "", "DRAW-", "DRAW+")
+                                }
+
+                                "rz" -> {
+                                    action = v2s(event.value, "", "SPECIAL-", "SPECIAL+")
+                                }
+                            }
+                            mutex.withLock {
+                                when (action) {
+                                    "IDLE" -> {
+                                        xBlocked = false
+                                        yBlocked = false
+                                        jsDir = null
+                                    }
+
+                                    "X+" -> {
+                                        if (!xBlocked) {
+                                            yBlocked = true
+                                            jsDir = Direction.RIGHT
+                                        }
+                                    }
+
+                                    "X-" -> {
+                                        if (!xBlocked) {
+                                            yBlocked = true
+                                            jsDir = Direction.LEFT
+                                        }
+                                    }
+
+                                    "Y+" -> {
+                                        if (!yBlocked) {
+                                            xBlocked = true
+                                            jsDir = Direction.DOWN
+                                        }
+                                    }
+
+                                    "Y-" -> {
+                                        if (!yBlocked) {
+                                            xBlocked = true
+                                            jsDir = Direction.UP
+                                        }
+                                    }
+
+                                    "DRAW+" -> draw = true
+                                    "DRAW-" -> draw = false
+                                    "SPECIAL+" -> special = true
+                                    "SPECIAL-" -> special = false
                                 }
                             }
                         }
-
-                        "ry" -> {
-                            if (yBlocked)
-                                continue
-                            if (event.value == 0.0f) {
-                                println("ry: 0 ${jsDir} ${xBlocked} ${yBlocked}")
-                                xBlocked = false
-                                jsDir = null
-                            } else if (!yBlocked) {
-                                xBlocked = true
-                                if (event.value < 0.0) {
-                                    jsDir = Direction.UP
-                                } else {
-                                    jsDir = Direction.DOWN
-                                }
-                            }
-                        }
-
-                        "z" -> {
-                            if (event.value > 0.5) {
-                                draw = true
-                            } else if (event.value < -0.5) {
-                                draw = false
-                            }
-                        }
-
-                        "rz" -> {
-                            if (event.value > 0.5) {
-                                special = true
-                            } else if (event.value < -0.5) {
-                                special = false
-                            }
-                        }
+                        delay(10)
+                    }
+                    catch (e: Exception) {
+                        println("Joystick2 exception: $e")
                     }
                 }
-                delay(10)
             }
+        }
+        catch (e: Exception) {
+            println("Joystick exception: $e")
+        }
+        finally {
+            println("Joystick finally")
         }
     }
 }

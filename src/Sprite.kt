@@ -16,17 +16,15 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
         val color: Color = Color.BLACK
     )
 
-    val spriteLength = 10
-    val spriteSize = 250
-    val stepSize = 10
-
-    @Volatile
-    var spriteSpeed: Int = 100 // per second
-    val maxAngle = Math.toRadians(30.0)
-    val tail = LinkedList<SpriteSegment>()
-    val tailMutex = Mutex(false)
-    var currentPoint = Point(500, 500)
-    var currentAngle = 0.0
+    val spriteLength = 10 // number of segments
+    val spriteSize = 250 // segment length
+    val stepSize = 5 // pixels
+    var spriteSpeed: Long = 50 // ms delay
+    val maxAngle = Math.toRadians(30.0) // max angle change
+    val tail = LinkedList<SpriteSegment>() // tail segments
+    val tailMutex = Mutex(false) //
+    var currentPoint = Point(500, 500) // middle of the lead segment
+    var currentAngle = 0.0 // angle of the lead segment
 
     suspend fun reset() {
         tailMutex.withLock {
@@ -265,12 +263,10 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
             currentAngle = calculateReflectionAngle(ret)
         }
         currentPoint = newPoint(currentPoint, currentAngle, stepSize)
-//        println("${currentPoint.x}, ${currentPoint.y}, $currentAngle")
         store()
     }
 
     suspend fun draw(g: Graphics2D) {
-        //g.clipRect(minX, minY, maxX-minX, maxY-minY)
         g.stroke = java.awt.BasicStroke(2.0f)
         tailMutex.withLock {
             for (segment in tail) {
@@ -300,36 +296,6 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
             }
         }
         return null
-    }
-
-    fun getIntersectionPoint(
-        seg1: Pair<Point, Point>,
-        seg2: Pair<Point, Point>
-    ): LineHit? {
-        val (a, b) = seg1
-        val (c, d) = seg2
-
-        val det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)
-        if (det == 0) return null // Parallel lines
-
-        val t = ((a.x - c.x) * (d.y - c.y) - (a.y - c.y) * (d.x - c.x)) / det.toDouble()
-        val u = ((a.x - c.x) * (b.y - a.y) - (a.y - c.y) * (b.x - a.x)) / det.toDouble()
-
-        return if (t in 0.0..1.0 && u in 0.0..1.0) {
-            val x = (a.x + t * (b.x - a.x)).toInt()
-            val y = (a.y + t * (b.y - a.y)).toInt()
-            return LineHit(
-                0,
-                a, b,
-                Point(x, y),
-                HitObj.AREA,
-                c, d,
-                currentPoint,
-                currentAngle
-            )
-        } else {
-            null
-        }
     }
 
     fun myIntersect(wall: Pair<Point, Point>, segment: Pair<Point, Point>, objType: HitObj): LineHit? {

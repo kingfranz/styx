@@ -1,3 +1,4 @@
+import ArenaMask.MaskType
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -18,27 +19,25 @@ import java.util.LinkedList
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class Arena(val parent: iArena): Canvas(), iArena, iTargets {
+class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
     val edgeSz = 20
     val sprite = Sprite(this, edgeSz)
     val player = Player(this)
     val keys = mutableMapOf<Int, Boolean>()
-    val lines = LinkedList<Point>() // (x, y)
+    val lines = LinkedList<Pair<Point, Player.Direction>>() // (x, y)
     var xArr: IntArray = IntArray(1000) { i -> i }
     var yArr: IntArray = IntArray(1000) { i -> i }
     var arrSize = 0
     val areas = LinkedList<Polygon>()
-    val arenaWalls = Walls()
     val arenaSz = 1000
-    val areaMask = BufferedImage(arenaSz, arenaSz, BufferedImage.TYPE_BYTE_GRAY)
-    val areaG = areaMask.createGraphics()
+    override val arenaMask = ArenaMask(arenaSz, arenaSz)
 
     init {
         isFocusable = true
-        preferredSize = java.awt.Dimension(arenaSz+2*edgeSz, arenaSz+2*edgeSz)
-        minimumSize = java.awt.Dimension(arenaSz+2*edgeSz, arenaSz+2*edgeSz)
-        maximumSize = java.awt.Dimension(arenaSz+2*edgeSz, arenaSz+2*edgeSz)
-        size = java.awt.Dimension(arenaSz+2*edgeSz, arenaSz+2*edgeSz)
+        preferredSize = java.awt.Dimension(arenaSz + 2 * edgeSz, arenaSz + 2 * edgeSz)
+        minimumSize = java.awt.Dimension(arenaSz + 2 * edgeSz, arenaSz + 2 * edgeSz)
+        maximumSize = java.awt.Dimension(arenaSz + 2 * edgeSz, arenaSz + 2 * edgeSz)
+        size = java.awt.Dimension(arenaSz + 2 * edgeSz, arenaSz + 2 * edgeSz)
         addKeyListener(object : KeyListener {
             override fun keyTyped(e: KeyEvent) {
                 when (e.keyChar) {
@@ -51,18 +50,29 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
                 keys[e.keyCode] = true
                 runBlocking {
                     when (e.keyCode) {
-                        KeyEvent.VK_LEFT -> player.move(Player.Direction.LEFT,
+                        KeyEvent.VK_LEFT -> player.kbdMove(
+                            Player.Direction.LEFT,
                             keys[KeyEvent.VK_SHIFT] == true,
-                            keys[KeyEvent.VK_CONTROL] == true)
-                        KeyEvent.VK_RIGHT -> player.move(Player.Direction.RIGHT,
+                            keys[KeyEvent.VK_CONTROL] == true
+                        )
+
+                        KeyEvent.VK_RIGHT -> player.kbdMove(
+                            Player.Direction.RIGHT,
                             keys[KeyEvent.VK_SHIFT] == true,
-                            keys[KeyEvent.VK_CONTROL] == true)
-                        KeyEvent.VK_UP -> player.move(Player.Direction.UP,
+                            keys[KeyEvent.VK_CONTROL] == true
+                        )
+
+                        KeyEvent.VK_UP -> player.kbdMove(
+                            Player.Direction.UP,
                             keys[KeyEvent.VK_SHIFT] == true,
-                            keys[KeyEvent.VK_CONTROL] == true)
-                        KeyEvent.VK_DOWN -> player.move(Player.Direction.DOWN,
+                            keys[KeyEvent.VK_CONTROL] == true
+                        )
+
+                        KeyEvent.VK_DOWN -> player.kbdMove(
+                            Player.Direction.DOWN,
                             keys[KeyEvent.VK_SHIFT] == true,
-                            keys[KeyEvent.VK_CONTROL] == true)
+                            keys[KeyEvent.VK_CONTROL] == true
+                        )
                     }
                 }
             }
@@ -81,16 +91,9 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
         player.reset()
         clearLines()
         clearAreas()
-        arenaWalls.addWall(HorizontalWall(0, 0, arenaSz-1)) // top
-        arenaWalls.addWall(VerticalWall(arenaSz-1, 0, arenaSz-1)) // right
-        arenaWalls.addWall(HorizontalWall(arenaSz-1, 0, arenaSz-1)) // bottom
-        arenaWalls.addWall(VerticalWall(0, 0, arenaSz-1)) // left
-        areaG.color = Color.BLACK
-        areaG.fillRect(0, 0, arenaSz, arenaSz)
-    }
-
-    override fun getWalls(): Walls {
-        return arenaWalls
+        arenaMask.fillRect(0, 0, arenaSz, arenaSz, MaskType.EMPTY_CLR)
+        arenaMask.stroke = BasicStroke(1f)
+        arenaMask.drawRect(0, 0, arenaSz, arenaSz, MaskType.WALL_CLR)
     }
 
     override fun showSpeed(value: Int) {
@@ -113,9 +116,9 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
         return areas
     }
 
-    override fun addLeg(p: Point) {
+    override fun addLeg(p: Point, dir: Player.Direction) {
         if (arrSize > 0) {
-            if (xArr[arrSize-1] == p.x && yArr[arrSize-1] == p.y) {
+            if (xArr[arrSize - 1] == p.x && yArr[arrSize - 1] == p.y) {
                 return
             }
             if (arrSize > 1) {
@@ -130,7 +133,7 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
                     xArr[arrSize - 1] = p.x
                     yArr[arrSize - 1] = p.y
                     lines.removeLast()
-                    lines.add(p)
+                    lines.add(Pair(p, dir))
                     return
                 }
             }
@@ -142,7 +145,19 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
         xArr[arrSize] = p.x
         yArr[arrSize] = p.y
         arrSize++
-        lines.add(p)
+        lines.add(Pair(p, dir))
+        if (arrSize > 1) {
+            //arenaMask.color = MaskType.LINE_CLR.value
+            //arenaMask.stroke = BasicStroke(1f)
+            arenaMask.drawLine(
+                Point(xArr[arrSize - 2], yArr[arrSize - 2]),
+                Point(p.x, p.y),
+                MaskType.LINE_CLR)
+        }
+    }
+
+    override fun getLeg(i: Int): Pair<Point, Player.Direction> {
+        return lines[i]
     }
 
     override fun numLegs(): Int {
@@ -151,40 +166,74 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
 
     override fun clearLines() {
         lines.clear()
+        arrSize = 0
     }
 
     override fun clearAreas() {
         areas.clear()
     }
 
+    fun calcArea(): Int {
+        var emptyCnt = 0
+        var areaCnt = 0
+        var wallCnt = 0
+        var misc = 0
+        var startTS = java.time.Instant.now()
+        for (i in 0 until arenaSz) {
+            for (j in 0 until arenaSz) {
+                val aa = arenaMask.get(i, j)
+                when (aa) {
+                    MaskType.EMPTY_CLR -> emptyCnt++
+                    MaskType.WALL_CLR -> wallCnt++
+                    MaskType.AREA_CLR -> areaCnt++
+                    else -> misc++
+                }
+            }
+        }
+        var endTS = java.time.Instant.now()
+        println("empty: $emptyCnt, wall: $wallCnt, area: $areaCnt ${endTS.toEpochMilli() - startTS.toEpochMilli()} ms")
+        return (areaCnt.toDouble() / (emptyCnt + wallCnt + areaCnt).toDouble() * 100.0).toInt()
+    }
+
     override fun mkArea() {
-        val xs = IntArray(lines.size) { i -> lines[i].x }
-        val ys = IntArray(lines.size) { i -> lines[i].y }
+        val xs = IntArray(lines.size) { i -> lines[i].first.x }
+        val ys = IntArray(lines.size) { i -> lines[i].first.y }
         val poly = Polygon(xs, ys, lines.size)
         areas.add(poly)
-        areaG.color = Color.WHITE
-        areaG.fillPolygon(poly)
-        val tmpWall = Walls()
-        for(i in 0 until lines.size-1) {
-            tmpWall.addWall(Wall(lines[i], lines[i+1]))
-        }
-        arenaWalls.addWalls(tmpWall)
+        arenaMask.fPoly(poly)
+        // draw outline
+        arenaMask.drawPoly(poly, MaskType.WALL_CLR)
+        // cleanup
         lines.clear()
         arrSize = 0
+        showPercent(calcArea())
+    }
+
+    override fun getPointType(p: Point): MaskType {
+        try {
+            if (p.x < 0 || p.y < 0 || p.x >= arenaSz || p.y >= arenaSz) {
+                return MaskType.ERROR_CLR
+            }
+            val aa = arenaMask.get(p.x, p.y)
+            return aa
+        } catch (e: Exception) {
+            println("getPointType: $p $e")
+            return MaskType.ERROR_CLR
+        }
     }
 
     override fun isPosAvailable(p: Point): Boolean {
-        try {
-            if(p.x >= 0 && p.x < arenaSz &&
-                   p.y >= 0 && p.y < arenaSz) {
-                val aa = areaMask.getRGB(p.x, p.y) and 0x00ffffff
-                return aa == 0
-            }
+        val aa = getPointType(p)
+        if (aa == MaskType.ERROR_CLR)
             return false
-                    //areaMask.getRGB(p.x, p.y) == 0
-        } catch (e: Exception) {
+        return aa == MaskType.EMPTY_CLR || aa == MaskType.WALL_CLR
+    }
+
+    override fun isOnEdge(p: Point): Boolean {
+        val aa = getPointType(p)
+        if (aa == MaskType.ERROR_CLR)
             return false
-        }
+        return aa == MaskType.WALL_CLR
     }
 
     fun drawAxis(g: Graphics2D) {
@@ -208,60 +257,108 @@ class Arena(val parent: iArena): Canvas(), iArena, iTargets {
         runBlocking { sprite.step() }
     }
 
+    override fun showPercent(value: Int) {
+        parent.showPercent(value)
+    }
+
     override fun paint(g: Graphics) {
-        val g2d = g as Graphics2D
-        g2d.color = Color.WHITE
-        g2d.fillRect(0, 0, width, height)
+        try {
+            val g2d = g as Graphics2D
+            g2d.color = Color.WHITE
+            g2d.fillRect(0, 0, width, height)
 
-        val spriteGraph = g2d.create() as Graphics2D
-        spriteGraph.translate(edgeSz, edgeSz)
-        //spriteGraph.scale(1.0, -1.0)
-        drawEdge(spriteGraph)
-        runBlocking { sprite.draw(spriteGraph) }
-        spriteGraph.dispose()
+            // draw the sprite
+            val spriteGraph = g2d.create() as Graphics2D
+            spriteGraph.translate(edgeSz, edgeSz)
+            drawEdge(spriteGraph)
+            runBlocking { sprite.draw(spriteGraph) }
+            spriteGraph.dispose()
 
-        val playerGraph = g2d.create() as Graphics2D
-        playerGraph.translate(edgeSz, edgeSz)
-        //playerGraph.scale((width-2*edgeSz)/1000.0, (height-2*edgeSz)/1000.0)
-        runBlocking { player.draw(playerGraph) }
+            // draw the player
+            val playerGraph = g2d.create() as Graphics2D
+            playerGraph.translate(edgeSz, edgeSz)
+            runBlocking { player.draw(playerGraph) }
 
-        val (num, xs, ys) = getLines()
-        playerGraph.color = Color.RED
-        playerGraph.stroke = java.awt.BasicStroke(2.0f)
-        playerGraph.drawPolyline(xs, ys, num)
+            // draw the draw-track
+            val (num, xs, ys) = getLines()
+            if(num > 0) {
+                playerGraph.color = Color.RED
+                playerGraph.stroke = java.awt.BasicStroke(2.0f)
+                playerGraph.drawPolyline(xs, ys, num)
+                val last = Point(xs[num-1], ys[num-1])
+                if(last != player.pos.xy) {
+                    playerGraph.drawLine(last.x, last.y, player.pos.xy.x, player.pos.xy.y)
+                }
+            }
 
-        // show areas
-        for (a in areas) {
-            playerGraph.color = Color.BLACK
-            playerGraph.stroke = BasicStroke(1f)
-            playerGraph.drawPolygon(a)
-            playerGraph.color = Color.GRAY
-            playerGraph.fillPolygon(a)
+            // show areas
+            for (a in areas) {
+                playerGraph.color = Color.BLACK
+                playerGraph.stroke = BasicStroke(1f)
+                playerGraph.drawPolygon(a)
+                playerGraph.color = Color.GRAY
+                playerGraph.fillPolygon(a)
+            }
+            playerGraph.dispose()
         }
-        playerGraph.dispose()
+        catch (e: Exception) {
+            println("Arena.paint: ${e.message}")
+            e.printStackTrace()
+        }
     }
 
     suspend fun run(): Unit = coroutineScope {
-        launch { player.joystick.run() }
-        launch { player.makeMoves() }
-        createBufferStrategy(2)
-        val strategy = bufferStrategy
-        launch(Dispatchers.Default + CoroutineName("Arena")) {
-            while(true) {
-                delay(sprite.spriteSpeed.toLong())
-                do {
-                    do {
-                        val g = strategy.drawGraphics
-                        try {
-                            update(g)
-                            paint(g)
-                        } finally {
-                            g.dispose()
-                        }
-                    } while (strategy.contentsRestored())
-                    strategy.show()
-                } while (strategy.contentsLost())
+        try {
+            launch {
+                try {
+                    player.joystick.run()
+                }
+                catch (e: Exception) {
+                    println("Arena.run: joystick: ${e.message}")
+                    e.printStackTrace()
+                }
             }
+            launch {
+                try {
+                    player.makeMoves()
+                }
+                catch (e: Exception) {
+                    println("Arena.run: makeMoves: ${e.message}")
+                    e.printStackTrace()
+                }
+            }
+            createBufferStrategy(2)
+            val strategy = bufferStrategy
+            launch(Dispatchers.Default + CoroutineName("Arena")) {
+                while (true) {
+                    try {
+                        delay(sprite.spriteSpeed)
+                        do {
+                            do {
+                                val g = strategy.drawGraphics
+                                try {
+                                    update(g)
+                                    paint(g)
+                                } finally {
+                                    g.dispose()
+                                }
+                            } while (strategy.contentsRestored())
+                            strategy.show()
+                        } while (strategy.contentsLost())
+                    }
+                    catch (e: Exception) {
+                        println("Arena.run2: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+        catch (e: Exception) {
+            println("Arena.run: ${e.message}")
+            e.printStackTrace()
+        }
+        finally {
+            println("Arena.run: finally")
         }
     }
 }

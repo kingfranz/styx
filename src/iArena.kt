@@ -2,15 +2,22 @@ import java.awt.Point
 import java.util.LinkedList
 import javax.swing.JComponent
 
-interface iArena {
+interface iShow {
     fun showDrawMode(active: Boolean): Unit
     fun showSpeed(value: Int): Unit
     fun showLoc(value: String): Unit
-    fun addLeg(p: Point): Unit
+    fun showPercent(value: Int): Unit
+}
+
+interface iArena: iShow {
+    val arenaMask: ArenaMask
+    fun addLeg(p: Point, dir: Player.Direction): Unit
+    fun getLeg(i: Int): Pair<Point, Player.Direction>
     fun mkArea(): Unit
     fun clearLines(): Unit
     fun clearAreas(): Unit
     fun numLegs(): Int
-    fun getWalls(): Walls
     fun isPosAvailable(p: Point): Boolean
+    fun isOnEdge(p: Point): Boolean
+    fun getPointType(p: Point): ArenaMask.MaskType
 }

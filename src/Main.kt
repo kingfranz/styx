@@ -38,7 +38,15 @@ suspend fun main(): Unit = coroutineScope {
     val width = 1040
     val height = 1040+52
 
-    // Add a label to the frame
-    val win = GameWin(width, height)
-    win.run()
+    try {
+        val win = GameWin(width, height)
+        win.run()
+    }
+    catch (e: Exception) {
+        println("Main: ${e.message}")
+        e.printStackTrace()
+    }
+    finally {
+        println("Main: finally")
+    }
 }

@@ -20,11 +20,12 @@ import javax.swing.border.EmptyBorder
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class ClientArea(): JPanel(), iArena {
+class ClientArea(): JPanel(), iShow {
     val resetButton = Button("Reset")
     val speedLbl = JLabel("10")
     val drawLbl = JLabel("")
     val locLbl = JLabel("")
+    val percentLbl = JLabel("0%")
     val arena = Arena(this)
     val topPanel = JPanel(FlowLayout())
 
@@ -36,13 +37,14 @@ class ClientArea(): JPanel(), iArena {
         drawLbl.font = Font("Arial", Font.BOLD, 30)
         drawLbl.border = EmptyBorder(0, 0, 0, 20)
         locLbl.font = Font("Arial", Font.BOLD, 30)
-        //speedCtrl.preferredSize = Dimension(400, 30)
-        //speedCtrl.location = Point(0, 0)
+        locLbl.border = EmptyBorder(0, 0, 0, 20)
+        percentLbl.font = Font("Arial", Font.BOLD, 30)
         add(topPanel, BorderLayout.NORTH)
         topPanel.add(resetButton)
         topPanel.add(speedLbl)
         topPanel.add(drawLbl)
         topPanel.add(locLbl)
+        topPanel.add(percentLbl)
         add(arena, BorderLayout.CENTER)
         isVisible = true
 //        speedCtrl.addAdjustmentListener {
@@ -88,41 +90,31 @@ class ClientArea(): JPanel(), iArena {
         locLbl.text = value
     }
 
-    override fun addLeg(p: Point) {
-        TODO("Not yet implemented")
-    }
-
-    override fun clearAreas() {
-        TODO("Not yet implemented")
-    }
-
-
-    override fun clearLines() {
-        TODO("Not yet implemented")
-    }
-
-    override fun mkArea() {
-        TODO("Not yet implemented")
-    }
-
-    override fun numLegs(): Int {
-        TODO("Not yet implemented")
-    }
-
-    override fun getWalls(): Walls {
-        TODO("Not yet implemented")
-    }
-
-    override fun isPosAvailable(p: Point): Boolean {
-        TODO("Not yet implemented")
+    override fun showPercent(value: Int) {
+        percentLbl.text = "$value%"
     }
 
     override fun paint(g: Graphics?) {
-        super.paint(g)
-        arena.repaint()
+        try {
+            super.paint(g)
+            arena.repaint()
+        }
+        catch (e: Exception) {
+            println("ClientArea.paint: ${e.message}")
+            e.printStackTrace()
+        }
     }
 
     suspend fun run(): Unit = coroutineScope {
-        arena.run()
+        try {
+            arena.run()
+        }
+        catch (e: Exception) {
+            println("ClientArea.run: ${e.message}")
+            e.printStackTrace()
+        }
+        finally {
+            println("ClientArea.run: finally")
+        }
     }
 }

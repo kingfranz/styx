@@ -46,11 +46,26 @@ class GameWin(val cWidth: Int, val cHeight: Int): JFrame() {
 //    }
 
     override fun paint(g: Graphics) {
-        super.paint(g)
-        child.repaint()
+        try {
+            super.paint(g)
+            child.repaint()
+        }
+        catch (e: Exception) {
+            println("GameWin.paint: ${e.message}")
+            e.printStackTrace()
+        }
     }
 
     suspend fun run(): Unit = coroutineScope {
-        child.run()
+        try {
+            child.run()
+        }
+        catch (e: Exception) {
+            println("GameWin.run: ${e.message}")
+            e.printStackTrace()
+        }
+        finally {
+            println("GameWin.run: finally")
+        }
     }
 }
