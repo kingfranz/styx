@@ -79,6 +79,7 @@ class ArenaMask(val width: Int, val height: Int) {
         // only EMPTY but can end on WALL
         if (!validPoint(start))
             return Vec(0, 0)
+        // also check for xover
         val steps = delta
             .iter()
             .map {

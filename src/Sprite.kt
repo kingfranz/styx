@@ -1,3 +1,5 @@
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.awt.Color
@@ -19,7 +21,7 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
     val spriteLength = 10 // number of segments
     val spriteSize = 250 // segment length
     val stepSize = 5 // pixels
-    var spriteSpeed: Long = 50 // ms delay
+    var spriteSpeed: Long = 20 // ms delay
     val maxAngle = Math.toRadians(30.0) // max angle change
     val tail = LinkedList<SpriteSegment>() // tail segments
     val tailMutex = Mutex(false) //
@@ -243,8 +245,9 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
                 for (segment in tail) {
                     val hit = myIntersect(
                         Pair(s1, s2),
-                        Pair(Point(segment.x1, segment.y1), Point(segment.x2, segment.y2)), HitObj.LINE
-                    )
+                        Pair(Point(segment.x1, segment.y1),
+                            Point(segment.x2, segment.y2)),
+                        HitObj.LINE)
                     if (hit != null) {
                         //println("Hit.lines at $hit")
                         return hit
@@ -259,11 +262,28 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
         val ret = collisionDetect()
         if (ret == null) {
             currentAngle = normalizeAngle(newAngle(currentAngle))
-        } else {
+        } else if(ret.hitObj == HitObj.LINE) {
+            parent.showHit(ret.hitPoint)
+        }
+        else {
             currentAngle = calculateReflectionAngle(ret)
         }
-        currentPoint = newPoint(currentPoint, currentAngle, stepSize)
+        tailMutex.withLock {
+            currentPoint = newPoint(currentPoint, currentAngle, stepSize)
+        }
         store()
+    }
+
+    suspend fun run(): Unit = coroutineScope {
+        try {
+            while (true) {
+                step()
+                delay(spriteSpeed)
+            }
+        } catch (e: Exception) {
+            println("run: ${e.message}")
+            e.printStackTrace()
+        }
     }
 
     suspend fun draw(g: Graphics2D) {

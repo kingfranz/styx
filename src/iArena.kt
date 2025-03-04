@@ -20,4 +20,5 @@ interface iArena: iShow {
     fun isPosAvailable(p: Point): Boolean
     fun isOnEdge(p: Point): Boolean
     fun getPointType(p: Point): ArenaMask.MaskType
+    fun showHit(p: Point): Unit
 }

@@ -1,6 +1,8 @@
 import Player.Direction
 import java.awt.Color
+import java.awt.Graphics2D
 import java.awt.Point
+import java.awt.Polygon
 import java.awt.geom.Point2D
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -88,3 +90,14 @@ fun mkVec(direction: Direction, dist: Int): Point {
     }
 }
 
+fun drawCircle(g: Graphics2D, x: Int, y: Int, r: Int) {
+    g.fillOval(x - r, y - r, 2 * r, 2 * r)
+}
+
+fun Polygon.str(): String {
+    val sb = StringBuilder()
+    for (i in 0 until npoints) {
+        sb.append("(${xpoints[i]}, ${ypoints[i]}) ")
+    }
+    return sb.toString()
+}

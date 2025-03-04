@@ -104,33 +104,6 @@ class Player(val parent: iArena) {
         }
     }
 
-    fun  clampLeg(lastWp: Vec, prevWp: Vec, speedDir: Vec): Vec {
-        val prevVector = (lastWp - prevWp).normalize()
-        val lastVector = ((pos.xy + speedDir) - lastWp).normalize()
-        if (prevVector.x != 0.0 && prevVector.y != 0.0) {
-            throw Exception("clampLeg")
-        }
-        val prevDir = prevVector.direction()
-        if (abs(lastVector.y) > abs(lastVector.x)) {
-            // vertical
-            val speedDir2 = Vec(0, speedDir.y)
-            if (inverseDir(prevDir) == lastVector.direction()) {
-                // no reverse
-                return Vec(0,0)
-            }
-              return speedDir2
-        }
-        else {
-            // horizontal
-            val speedDir2 = Vec(speedDir.x, 0)
-            if (inverseDir(prevDir) == lastVector.direction()) {
-                // no reverse
-                return Vec(0,0)
-            }
-            return speedDir2
-        }
-    }
-
     fun backOnEdge(speed: Vec) {
         pos.endDraw()
         parent.showDrawMode(false)
@@ -246,11 +219,28 @@ class Player(val parent: iArena) {
         }
     }
 
+    var radius = 10
+    var down = true
+
     suspend fun draw(g: Graphics2D) {
         pos.mutex.withLock {
             // show player
             g.color = Color.RED
-            g.fillRect(pos.xy.x - 10, pos.xy.y - 10, 20, 20)
+            drawCircle(g, pos.xy.x, pos.xy.y, radius)
+            if(down && radius > 2) {
+                radius--
+            }
+            else if(down && radius <= 2) {
+                down = false
+                radius++
+            }
+            else if(!down && radius < 10) {
+                radius++
+            }
+            else if(!down && radius >= 10) {
+                down = true
+                radius--
+            }
             // show position
             parent.showLoc(pos.posStr)
         }
