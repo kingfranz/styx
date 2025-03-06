@@ -101,3 +101,17 @@ fun Polygon.str(): String {
     }
     return sb.toString()
 }
+
+fun Polygon(ps: List<Point>): Polygon {
+    val xs = IntArray(ps.size) { i -> ps[i].x }
+    val ys = IntArray(ps.size) { i -> ps[i].y }
+    return Polygon(xs, ys, ps.size)
+}
+
+fun List<Point>.str(): String {
+    val sb = StringBuilder()
+    for (i in 0 until size) {
+        sb.append("(${get(i).x}, ${get(i).y}) ")
+    }
+    return sb.toString()
+}

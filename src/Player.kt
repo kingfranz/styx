@@ -107,7 +107,7 @@ class Player(val parent: iArena) {
     fun backOnEdge(speed: Vec) {
         pos.endDraw()
         parent.showDrawMode(false)
-        if (parent.numLegs() > 1) {
+        if (parent.numLegs() > 0) {
             // we're on the edge
             parent.addLeg(pos.xy, speed.direction())
             parent.mkArea()

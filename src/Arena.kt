@@ -288,32 +288,26 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
         }
     }
 
-    fun finalizePath(): Polygon? {
-        if(lines.size < 2) {
-            return null
-        }
-        val start = lines.first().first
-        val stop = lines.last().first
-        arenaMask.set(start, MaskType.WALL_CLR)
-        arenaMask.set(stop, MaskType.WALL_CLR)
-
-        //-------------------------------------------
-        // cvPath
-        //-------------------------------------------
-        var delta = followWall(start, true, true)
+    fun finalize(start: Point, stop: Point, cv: Boolean): Polygon? {
+        var delta = followWall(start, cv, true)
         var traveller = start
-        val cvPath = mutableListOf<Point>()
-        cvPath.add(traveller)
+        val path = mutableListOf<Point>()
         while(delta != Vec(0, 0) && traveller != stop) {
+            if(path.contains(traveller)) {
+                // error
+                println("finalizePath.cv: loop @ $traveller [${path.str()}]")
+                return null
+            }
+            path.add(traveller)
             traveller = traveller.translate(delta)
-            cvPath.add(traveller)
-            if (cvPath.size > 100) {
-                throw Exception("finalizePath.cv: path is too long")
+            if (path.size > 100) {
+                println("finalizePath.cv: path is too long")
+                return null
             }
             var tmp = Point(0, 0)
             do {
                 tmp = delta
-                delta = followWall(traveller, true)
+                delta = followWall(traveller, cv)
                 if(tmp == delta)
                     traveller = traveller.translate(delta)
             } while(tmp == delta && traveller != stop)
@@ -326,71 +320,71 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
         var cvPoly: Polygon? = null
         if(traveller == stop) {
             lines.reversed().forEach { p ->
-                cvPath.add(p.first)
+                path.add(p.first)
             }
-            val xs = IntArray(cvPath.size) { i -> cvPath[i].x }
-            val ys = IntArray(cvPath.size) { i -> cvPath[i].y }
-            cvPoly = Polygon(xs, ys, cvPath.size)
+            return Polygon(path)
         }
+        println("")
+        return null
+    }
 
+    fun finalizePath(): Polygon? {
+        if(lines.size < 2) {
+            return null
+        }
+        val start = lines.first().first
+        val stop = lines.last().first
+        arenaMask.set(start, MaskType.WALL_CLR)
+        arenaMask.set(stop, MaskType.WALL_CLR)
+
+        //-------------------------------------------
+        // cvPath
+        //-------------------------------------------
+        val cvPoly = finalize(start, stop, true)
+        if (cvPoly == null) {
+            throw Exception("finalizePath.cv: error")
+        }
+        println(cvPoly.str())
 
         //-------------------------------------------
         // ccvPath
         //-------------------------------------------
-        delta = followWall(start, false, true)
-        traveller = start
-        val ccvPath = mutableListOf<Point>()
-        cvPath.add(traveller)
-        while(delta != Vec(0, 0) && traveller != stop) {
-            traveller = traveller.translate(delta)
-            ccvPath.add(traveller)
-            if (ccvPath.size > 100) {
-                throw Exception("finalizePath.ccv: path is too long")
-            }
-            var tmp = Point(0, 0)
-            do {
-                tmp = delta
-                delta = followWall(traveller, false)
-                if(tmp == delta)
-                    traveller = traveller.translate(delta)
-            } while(tmp == delta && traveller != stop)
+        val ccvPoly = finalize(start, stop, false)
+        if (ccvPoly == null) {
+            throw Exception("finalizePath.ccv: error")
         }
-        if(delta == Vec(0, 0)) {
-            // error
-            println("finalizePath.ccv: no end")
-            return null
-        }
-        var ccvPoly: Polygon? = null
-        if(traveller == stop) {
-            lines.reversed().forEach { p ->
-                ccvPath.add(p.first)
-            }
-            val xs = IntArray(ccvPath.size) { i -> ccvPath[i].x }
-            val ys = IntArray(ccvPath.size) { i -> ccvPath[i].y }
-            ccvPoly = Polygon(xs, ys, ccvPath.size)
-        }
-        val cvArea = cvPoly?.let { calcPolyArea(it) } ?: 0
-        val ccvArea = ccvPoly?.let { calcPolyArea(it) } ?: 0
-        println("cvArea: $cvArea, ccvArea: $ccvArea")
+        println(ccvPoly.str())
+        val startTS1 = java.time.Instant.now()
+        val cvArea = calcPolyArea(cvPoly)
+        val endTS = java.time.Instant.now()
+        val startTS2 = java.time.Instant.now()
+        val ccvArea = calcPolyArea(ccvPoly)
+        val endTS2 = java.time.Instant.now()
+        val ms1 = endTS.toEpochMilli() - startTS1.toEpochMilli()
+        val ms2 = endTS2.toEpochMilli() - startTS2.toEpochMilli()
+        println("cvArea: $cvArea ${ms1}ms, ccvArea: $ccvArea ${ms2}ms")
         return if(cvArea < ccvArea) cvPoly else ccvPoly
     }
 
     override fun mkArea() {
-        //val xs = IntArray(lines.size) { i -> lines[i].first.x }
-        //val ys = IntArray(lines.size) { i -> lines[i].first.y }
-        //val poly = Polygon(xs, ys, lines.size)
-        val poly = finalizePath()
-        if(poly != null) {
-            println(poly.str())
-            areas.add(poly)
-            arenaMask.fPoly(poly)
-            // draw outline
-            arenaMask.drawPoly(poly, MaskType.WALL_CLR)
+        try {
+            val poly = finalizePath()
+            if (poly != null) {
+                //println(poly.str())
+                areas.add(poly)
+                arenaMask.fPoly(poly)
+                // draw outline
+                arenaMask.drawPoly(poly, MaskType.WALL_CLR)
+            }
+            // cleanup
+            lines.clear()
+            arrSize = 0
+            showPercent(calcArea())
         }
-        // cleanup
-        lines.clear()
-        arrSize = 0
-        showPercent(calcArea())
+        catch (e: Exception) {
+            println("mkArea: ${e.message}")
+            e.printStackTrace()
+        }
     }
 
     override fun getPointType(p: Point): MaskType {
