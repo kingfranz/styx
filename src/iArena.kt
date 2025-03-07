@@ -1,12 +1,13 @@
+package Styx
+
 import java.awt.Point
-import java.util.LinkedList
-import javax.swing.JComponent
 
 interface iShow {
     fun showDrawMode(active: Boolean): Unit
-    fun showSpeed(value: Int): Unit
+    fun showLvl(value: Int): Unit
     fun showLoc(value: String): Unit
     fun showPercent(value: Int): Unit
+    fun showScore(value: Int): Unit
 }
 
 interface iArena: iShow {
@@ -21,4 +22,6 @@ interface iArena: iShow {
     fun isOnEdge(p: Point): Boolean
     fun getPointType(p: Point): ArenaMask.MaskType
     fun showHit(p: Point): Unit
+    fun countStraight(): Int
+    fun weLost(): Boolean
 }

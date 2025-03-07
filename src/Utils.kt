@@ -1,5 +1,6 @@
-import Player.Direction
-import java.awt.Color
+package Styx
+
+import Styx.Player.Direction
 import java.awt.Graphics2D
 import java.awt.Point
 import java.awt.Polygon

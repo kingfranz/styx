@@ -1,16 +1,8 @@
+package Styx
+
 import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
-import java.awt.*
-import java.awt.event.KeyEvent
-import java.awt.event.KeyListener
 import java.time.Duration
 import java.time.Instant
-import java.util.*
-import javax.swing.JFrame
-import javax.swing.JPanel
-import kotlin.math.max
-import kotlin.math.min
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -35,11 +27,8 @@ suspend inline fun timer(ms: Long, pre: Boolean = false, block: () -> Unit) {
 
 suspend fun main(): Unit = coroutineScope {
     // Set frame size
-    val width = 1040
-    val height = 1040+52
-
     try {
-        val win = GameWin(width, height)
+        val win = GameWin()
         win.run()
     }
     catch (e: Exception) {

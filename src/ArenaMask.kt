@@ -1,28 +1,12 @@
-import Sprite.Segment
-import java.awt.BasicStroke
-import java.awt.Color
+package Styx
+
+import Styx.Sprite.Segment
 import java.awt.Point
 import java.awt.Polygon
-import java.awt.Stroke
-import java.util.SortedSet
 import kotlin.math.max
 import kotlin.math.min
 
 class ArenaMask(val width: Int, val height: Int) {
-
-    var _color: Color = Color(0, 0, 0)
-    var color: Color
-        get() = _color
-        set(value) {
-            _color = value
-        }
-
-    var _stroke: Stroke = BasicStroke(1.0f)
-    var stroke: Stroke
-        get() = _stroke
-        set(value) {
-            _stroke = value
-        }
 
     enum class MaskType(val value: Byte) {
         EMPTY_CLR(0),
@@ -35,9 +19,8 @@ class ArenaMask(val width: Int, val height: Int) {
     val mask = Array<MaskType>(width * height) { MaskType.EMPTY_CLR }
 
     fun reset() {
-        for (i in 0 until width * height) {
-            mask[i] = MaskType.EMPTY_CLR
-        }
+        fillRect(0, 0, width, height, MaskType.EMPTY_CLR)
+        drawRect(0, 0, width, height, MaskType.WALL_CLR)
     }
 
     fun get(x: Int, y: Int): MaskType {
@@ -49,6 +32,8 @@ class ArenaMask(val width: Int, val height: Int) {
     }
 
     fun set(x: Int, y: Int, value: MaskType) {
+        if(value == MaskType.LINE_CLR && get(x, y) != MaskType.EMPTY_CLR)
+            return
         mask[y * width + x] = value
     }
 
@@ -135,6 +120,8 @@ class ArenaMask(val width: Int, val height: Int) {
         }
         if (lastEmpty == -1) {
             if (firstWall != 0)
+                return Vec(0, 0)
+            if(get(start) == MaskType.WALL_CLR)
                 return Vec(0, 0)
             return steps[0].first
         }

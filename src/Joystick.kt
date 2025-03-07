@@ -1,4 +1,6 @@
-import Player.Direction
+package Styx
+
+import Styx.Player.Direction
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

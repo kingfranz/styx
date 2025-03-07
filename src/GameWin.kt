@@ -1,3 +1,5 @@
+package Styx
+
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import java.awt.*
@@ -13,7 +15,7 @@ import kotlin.math.min
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class GameWin(val cWidth: Int, val cHeight: Int): JFrame() {
+class GameWin(): JFrame() {
     val child = ClientArea()
 
     init {
@@ -40,10 +42,6 @@ class GameWin(val cWidth: Int, val cHeight: Int): JFrame() {
             }
         })
     }
-
-//    override fun getPreferredSize(): Dimension? {
-//        return Dimension(cWidth, cHeight)
-//    }
 
     override fun paint(g: Graphics) {
         try {

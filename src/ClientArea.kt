@@ -1,56 +1,54 @@
+package Styx
+
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import java.awt.BorderLayout
 import java.awt.Button
 import java.awt.Color
-import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.Graphics
-import java.awt.LayoutManager
-import java.awt.Point
-import java.awt.Rectangle
-import java.awt.Scrollbar
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
 import javax.swing.JLabel
 import javax.swing.JPanel
-import javax.swing.LayoutStyle
 import javax.swing.border.EmptyBorder
 
 ///////////////////////////////////////////////////////////////////////////////
 
 class ClientArea(): JPanel(), iShow {
     val resetButton = Button("Reset")
-    val speedLbl = JLabel("10")
+    val lvlLbl = JLabel("Lvl:1")
+    val scoreLbl = JLabel("Score:0")
     val drawLbl = JLabel("")
     val locLbl = JLabel("")
     val percentLbl = JLabel("0%")
     val arena = Arena(this)
     val topPanel = JPanel(FlowLayout())
+    val uiFont = Font("Arial", Font.BOLD, 30)
 
     init {
         background = Color.GRAY
         layout = BorderLayout()
-        speedLbl.font = Font("Arial", Font.BOLD, 30)
-        speedLbl.border = EmptyBorder(0, 20, 0, 20)
-        drawLbl.font = Font("Arial", Font.BOLD, 30)
+        resetButton.font = uiFont
+        lvlLbl.font = uiFont
+        lvlLbl.border = EmptyBorder(0, 20, 0, 20)
+        scoreLbl.font = uiFont
+        scoreLbl.border = EmptyBorder(0, 20, 0, 20)
+        drawLbl.font = uiFont
         drawLbl.border = EmptyBorder(0, 0, 0, 20)
-        locLbl.font = Font("Arial", Font.BOLD, 30)
+        locLbl.font = uiFont
         locLbl.border = EmptyBorder(0, 0, 0, 20)
-        percentLbl.font = Font("Arial", Font.BOLD, 30)
+        percentLbl.font = uiFont
         add(topPanel, BorderLayout.NORTH)
         topPanel.add(resetButton)
-        topPanel.add(speedLbl)
+        topPanel.add(lvlLbl)
+        topPanel.add(scoreLbl)
         topPanel.add(drawLbl)
         topPanel.add(locLbl)
         topPanel.add(percentLbl)
         add(arena, BorderLayout.CENTER)
         isVisible = true
-//        speedCtrl.addAdjustmentListener {
-//            arena.sprite.spriteSpeed = speedCtrl.value
-//            speedLbl.text = speedCtrl.value.toString()
-//        }
         resetButton.addActionListener {
            runBlocking { arena.reset() }
         }
@@ -78,8 +76,12 @@ class ClientArea(): JPanel(), iShow {
         })
     }
 
-    override fun showSpeed(value: Int) {
-        speedLbl.text = value.toString()
+    override fun showLvl(value: Int) {
+        lvlLbl.text = "Lvl:${value.toString()}"
+    }
+
+    override fun showScore(value: Int) {
+        scoreLbl.text = "Score:${value.toString()}"
     }
 
     override fun showDrawMode(active: Boolean) {

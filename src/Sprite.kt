@@ -1,3 +1,5 @@
+package Styx
+
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
@@ -49,13 +51,6 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
         return SpriteSegment(Segment(Point(p1.x, p1.y), Point(p2.x, p2.y)), clr)
     }
 
-    fun rndClr(): Color {
-        val r = (Math.random() * 255).toInt()
-        val g = (Math.random() * 255).toInt()
-        val b = (Math.random() * 255).toInt()
-        return Color(r, g, b)
-    }
-
     fun normalizeAngle(a: Double): Double {
         var na = a
         while (na < 0) {
@@ -69,7 +64,10 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
 
     suspend fun store() {
         tailMutex.withLock {
-            tail.addFirst(mkSegment(currentPoint, currentAngle, spriteSize, rndClr()))
+            tail.addFirst(mkSegment(currentPoint,
+                currentAngle,
+                spriteSize,
+                ColorCycle.rndClr()))
             if (tail.size > spriteLength) {
                 tail.removeLast()
             }
@@ -170,157 +168,10 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
         return null
     }
 
-//    fun collisionDetect2(): LineHit? {
-//        // first check the perimeter
-//        if (tail.size > 0) {
-//            val s1 = Point(tail.first().x1, tail.first().y1)
-//            val s2 = Point(tail.first().x2, tail.first().y2)
-//            //-------------------------------------------
-//            // top edge
-//            //-------------------------------------------
-//            var e1 = Point(minX, minY)
-//            var e2 = Point(maxX, minY)
-//            var hit = myIntersect(Pair(s1, s2), Pair(e1, e2), HitObj.WALL)
-//            if (hit != null) {
-//                //println("Hit.top at $hit")
-//                return LineHit(
-//                    0,
-//                    s1, s2,
-//                    hit.hitPoint,
-//                    HitObj.WALL,
-//                    e1, e2,
-//                    currentPoint,
-//                    currentAngle
-//                )
-//            }
-//            if (tail.first().y1 < minY || tail.first().y2 < minY) {
-//                return LineHit(
-//                    0,
-//                    s1, s2,
-//                    Point(tail.first().x1, minY),
-//                    HitObj.WALL,
-//                    e1, e2,
-//                    currentPoint,
-//                    currentAngle
-//                )
-//            }
-//            //-------------------------------------------
-//            // right edge
-//            //-------------------------------------------
-//            e1 = Point(maxX, minY)
-//            e2 = Point(maxX, maxY)
-//            hit = myIntersect(Pair(s1, s2), Pair(e1, e2), HitObj.WALL)
-//            if (hit != null) {
-//                //println("Hit.right at $hit")
-//                return LineHit(
-//                    0,
-//                    s1, s2,
-//                    hit.hitPoint,
-//                    HitObj.WALL,
-//                    e1, e2,
-//                    currentPoint,
-//                    currentAngle
-//                )
-//            }
-//            if (tail.first().x1 > maxX || tail.first().x2 > maxX) {
-//                return LineHit(
-//                    0,
-//                    s1, s2,
-//                    Point(maxX, tail.first().y1),
-//                    HitObj.WALL,
-//                    e1, e2,
-//                    currentPoint,
-//                    currentAngle
-//                )
-//            }
-//            //-------------------------------------------
-//            // bottom edge
-//            //-------------------------------------------
-//            e1 = Point(maxX, maxY)
-//            e2 = Point(minX, maxY)
-//            hit = myIntersect(Pair(s1, s2), Pair(e1, e2), HitObj.WALL)
-//            if (hit != null) {
-//                //println("Hit.bottom at $hit")
-//                return LineHit(
-//                    0,
-//                    s1, s2,
-//                    hit.hitPoint,
-//                    HitObj.WALL,
-//                    e1, e2,
-//                    currentPoint,
-//                    currentAngle
-//                )
-//            }
-//            if (tail.first().y1 > maxY || tail.first().y2 > maxY) {
-//                return LineHit(
-//                    0,
-//                    s1, s2,
-//                    Point(tail.first().x1, maxY),
-//                    HitObj.WALL,
-//                    e1, e2,
-//                    currentPoint,
-//                    currentAngle
-//                )
-//            }
-//            //-------------------------------------------
-//            // left edge
-//            //-------------------------------------------
-//            e1 = Point(minX, maxY)
-//            e2 = Point(minX, minY)
-//            hit = myIntersect(Pair(s1, s2), Pair(e1, e2), HitObj.WALL)
-//            if (hit != null) {
-//                //println("Hit.left at $hit")
-//                return LineHit(
-//                    0,
-//                    s1, s2,
-//                    hit.hitPoint,
-//                    HitObj.WALL,
-//                    e1, e2,
-//                    currentPoint,
-//                    currentAngle
-//                )
-//            }
-//            if (tail.first().x1 < minX || tail.first().x2 < minX) {
-//                return LineHit(
-//                    0,
-//                    s1, s2,
-//                    Point(minX, tail.first().y1),
-//                    HitObj.WALL,
-//                    e1, e2,
-//                    currentPoint,
-//                    currentAngle
-//                )
-//            }
-//        }
-//
-//        // then check the drawn areas
-//        val ret = intersectsAnyArea()
-//        if (ret != null) {
-//            //println("Hit.boxes (${ret.segPoint1.x}, ${ret.segPoint2.y}) ${ret.hitPoint.x}, ${ret.hitPoint.y}")
-//            return ret
-//        }
-//
-//        // and then the current lines
-//        val (num, xs, ys) = parent.getLines()
-//        if (num > 1) {
-//            for (i in 1 until num) {
-//                val s1 = Point(xs[i - 1], ys[i - 1])
-//                val s2 = Point(xs[i], ys[i])
-//                for (segment in tail) {
-//                    val hit = myIntersect(
-//                        Pair(s1, s2),
-//                        Pair(Point(segment.x1, segment.y1),
-//                            Point(segment.x2, segment.y2)),
-//                        HitObj.LINE)
-//                    if (hit != null) {
-//                        //println("Hit.lines at $hit")
-//                        return hit
-//                    }
-//                }
-//            }
-//        }
-//        return null
-//    }
+    fun epsilon(): Double {
+        val slump = Math.random() * 2.0 - 1.0
+        return Math.toRadians(slump)
+    }
 
     suspend fun step() {
         val ret = collisionDetect()
@@ -328,9 +179,10 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
             currentAngle = normalizeAngle(newAngle(currentAngle))
         } else if(ret.hitObj == HitObj.LINE) {
             parent.showHit(ret.hitPoint)
+            return
         }
         else {
-            currentAngle = calculateReflectionAngle(ret)
+            currentAngle = calculateReflectionAngle(ret) + epsilon()
         }
         tailMutex.withLock {
             currentPoint = newPoint(currentPoint, currentAngle, stepSize)
@@ -351,7 +203,7 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
     }
 
     suspend fun draw(g: Graphics2D) {
-        g.stroke = java.awt.BasicStroke(2.0f)
+        g.stroke = java.awt.BasicStroke(4.0f)
         tailMutex.withLock {
             for (segment in tail) {
                 g.color = segment.color
@@ -359,141 +211,6 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
             }
         }
     }
-/*
-
-    fun intersectsAnyArea(): LineHit? {
-        if(tail.size > 0) {
-            val segment = tail.first()
-            for (polygon in parent.areas) {
-                if (polygon.contains(segment.line.p1.x, segment.line.p1.y) ||
-                    polygon.contains(segment.line.p2.x, segment.line.p2.y)) {
-                    val s1 = segment.line.p1
-                    val s2 = segment.line.p2
-                    return LineHit(
-                        0,
-                        s1, s2,
-                        Point(0, 0),
-                        HitObj.AREA,
-                        Point(0, 0), Point(0, 0),
-                        currentPoint,
-                        currentAngle
-                    )
-                }
-            }
-        }
-        return null
-    }
-
-    fun myIntersect(wall: Pair<Point, Point>, segment: Pair<Point, Point>, objType: HitObj): LineHit? {
-        if (wall.first.x == wall.second.x) {
-            // vertical wall
-            if (segment.first.x == segment.second.x) {
-                // vertical segment
-                if (wall.first.x == segment.first.x) {
-                    return LineHit(
-                        0,
-                        segment.first, segment.second,
-                        segment.first,
-                        objType,
-                        wall.first, wall.second,
-                        currentPoint,
-                        currentAngle
-                    )
-                }
-                else {
-                    return null
-                }
-            } else if(segment.first.x < wall.first.x && segment.second.x < wall.first.x) {
-                return null
-            } else if(segment.first.x > wall.first.x && segment.second.x > wall.first.x) {
-                return null
-            }
-            else {
-                val (a, b) = getEq(segment.first, segment.second)
-                val y = a * wall.first.x + b
-                if (y >= wall.first.y && y <= wall.second.y) {
-                    return LineHit(
-                        0,
-                        segment.first, segment.second,
-                        Point(wall.first.x, y.toInt()),
-                        objType,
-                        wall.first, wall.second,
-                        currentPoint,
-                        currentAngle
-                    )
-                }
-                else {
-                    return null
-                }
-            }
-        } else if (wall.first.y == wall.second.y) {
-            // horizontal wall
-            if (segment.first.y == segment.second.y) {
-                // horizontal segment
-                if (wall.first.y == segment.first.y) {
-                    return LineHit(
-                        0,
-                        segment.first, segment.second,
-                        segment.first,
-                        objType,
-                        wall.first, wall.second,
-                        currentPoint,
-                        currentAngle
-                    )
-                }
-                else {
-                    return null
-                }
-            } else if (segment.first.y < wall.first.y && segment.second.y < wall.first.y) {
-                return null
-            } else if (segment.first.y > wall.first.y && segment.second.y > wall.first.y) {
-                return null
-            } else {
-                val (a, b) = getEq(segment.first, segment.second)
-                val x = (wall.first.y - b) / a
-                if (x >= wall.first.x && x <= wall.second.x) {
-                    return LineHit(
-                        0,
-                        segment.first, segment.second,
-                        Point(x.toInt(), wall.first.y),
-                        objType,
-                        wall.first, wall.second,
-                        currentPoint,
-                        currentAngle
-                    )
-                }
-                else {
-                    return null
-                }
-            }
-        } else {
-            val (a1, b1) = getEq(wall.first, wall.second)
-            val (a2, b2) = getEq(segment.first, segment.second)
-            val x = (b2 - b1) / (a1 - a2)
-            if (x >= wall.first.x && x <= wall.second.x) {
-                val y = a1 * x + b1
-                if (y >= wall.first.y && y <= wall.second.y) {
-                    return LineHit(
-                        0,
-                        segment.first, segment.second,
-                        Point(x.toInt(), y.toInt()),
-                        objType,
-                        wall.first, wall.second,
-                        currentPoint,
-                        currentAngle
-                    )
-                }
-                else {
-                    return null
-                }
-            }
-            else {
-                return null
-            }
-        }
-        return null
-    }
-*/
 
     fun calculateReflectionAngle(hit: LineHit): Double {
         val epsilon = Math.random() * 5.0 - 2.5

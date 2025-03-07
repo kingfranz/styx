@@ -1,19 +1,19 @@
-import ArenaMask.MaskType
+package Styx
+
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
 import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.Point
-import kotlin.math.abs
-import kotlin.math.hypot
 
 ///////////////////////////////////////////////////////////////////////////////
 
 class Player(val parent: iArena) {
+
+    // TODO add levels and score and 80% win
 
     enum class Direction { UP, RIGHT, DOWN, LEFT }
 
@@ -96,6 +96,8 @@ class Player(val parent: iArena) {
     }
 
     fun validateMove(delta: Point, forDrawing: Boolean): Point {
+        if(parent.weLost())
+            return Point(0, 0)
         if(forDrawing) {
             return parent.arenaMask.validDraw(pos.xy, delta)
         }
@@ -133,8 +135,6 @@ class Player(val parent: iArena) {
             if (pos.drawing) {
                 if (pos.onEdge()) {
                     backOnEdge(speed)
-                } else if (parent.numLegs() == 0) {
-                    firstDraw(speed)
                 } else {
                     val (lastPoint, lastDir) = parent.getLeg(parent.numLegs() - 1)
                     if (speed.direction() == inverseDir(lastDir)) {
@@ -144,13 +144,14 @@ class Player(val parent: iArena) {
                     if (speed.direction() == lastDir) {
                         // same direction
                         pos.updateDrawXY(speed)
+                        parent.addLeg(pos.xy, speed.direction())
                         return
                     }
                     // check minimum length before turning
-                    if (lastPoint.distance(pos.xy) >= 30) {
+                    if (parent.countStraight() >= 30) {
                         // long enough
-                        parent.addLeg(pos.xy, speed.direction())
                         pos.updateDrawXY(speed)
+                        parent.addLeg(pos.xy, speed.direction())
                     } else {
                         // not long enough
                         return
@@ -163,8 +164,12 @@ class Player(val parent: iArena) {
                     // start drawing
                     pos.startDraw()
                     parent.showDrawMode(true)
+                    // add start position
                     parent.addLeg(pos.xy, speed.direction())
+                    // move to new position
                     pos.updateDrawXY(speed)
+                    // save new position
+                    parent.addLeg(pos.xy, speed.direction())
                 } else if(speed != Point(0, 0)) {
                     pos.updatePos(speed)
                 }
@@ -195,7 +200,7 @@ class Player(val parent: iArena) {
                                 } else {
                                     if (joystick.special) fastSpeed else normalSpeed
                                 }
-                                parent.showSpeed(speed)
+                                parent.showLvl(speed) // TODO move this
                                 val delta = mkVec(joystick.jsDir!!, speed)
                                 val realSpeed = validateMove(delta, pos.drawing || joystick.draw)
                                 move(realSpeed, joystick.draw)

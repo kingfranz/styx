@@ -1,3 +1,5 @@
+package Styx
+
 import ArenaMask.MaskType
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +16,6 @@ import java.awt.Point
 import java.awt.Polygon
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
-import java.awt.image.BufferedImage
 import java.util.LinkedList
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -25,8 +26,8 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
     val player = Player(this)
     val keys = mutableMapOf<Int, Boolean>()
     val lines = LinkedList<Pair<Point, Player.Direction>>() // (x, y)
-    var xArr: IntArray = IntArray(1000) { i -> i }
-    var yArr: IntArray = IntArray(1000) { i -> i }
+    var xArr: IntArray = IntArray(1000) { i -> 0 }
+    var yArr: IntArray = IntArray(1000) { i -> 0 }
     var arrSize = 0
     val areas = LinkedList<Polygon>()
     val arenaSz = 1000
@@ -91,13 +92,16 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
         player.reset()
         clearLines()
         clearAreas()
-        arenaMask.fillRect(0, 0, arenaSz, arenaSz, MaskType.EMPTY_CLR)
-        arenaMask.stroke = BasicStroke(1f)
-        arenaMask.drawRect(0, 0, arenaSz, arenaSz, MaskType.WALL_CLR)
+        hitStage = 0
+        arenaMask.reset()
     }
 
-    override fun showSpeed(value: Int) {
-        parent.showSpeed(value)
+    override fun showLvl(value: Int) {
+        parent.showLvl(value)
+    }
+
+    override fun showScore(value: Int) {
+        parent.showScore(value)
     }
 
     override fun showDrawMode(active: Boolean) {
@@ -134,6 +138,10 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
                     yArr[arrSize - 1] = p.y
                     lines.removeLast()
                     lines.add(Pair(p, dir))
+                    arenaMask.drawLine(
+                        Point(xArr[arrSize - 2], yArr[arrSize - 2]),
+                        p,
+                        MaskType.LINE_CLR)
                     return
                 }
             }
@@ -147,13 +155,17 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
         arrSize++
         lines.add(Pair(p, dir))
         if (arrSize > 1) {
-            //arenaMask.color = MaskType.LINE_CLR.value
-            //arenaMask.stroke = BasicStroke(1f)
             arenaMask.drawLine(
                 Point(xArr[arrSize - 2], yArr[arrSize - 2]),
-                Point(p.x, p.y),
+                p,
                 MaskType.LINE_CLR)
         }
+//        if(arrSize > 0) {
+//            arenaMask.drawLine(
+//                Point(xArr[arrSize - 1], yArr[arrSize - 1]),
+//                player.pos.xy,
+//                MaskType.LINE_CLR)
+//        }
     }
 
     override fun getLeg(i: Int): Pair<Point, Player.Direction> {
@@ -171,6 +183,20 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
 
     override fun clearAreas() {
         areas.clear()
+    }
+
+    override fun countStraight(): Int {
+        val targetDir = lines.last().second
+        var dist = 0.0
+        for(i in lines.size-1 downTo 1) {
+            if(lines[i].second == targetDir) {
+                dist += lines[i].first.distance(lines[i-1].first)
+            }
+            else {
+                break
+            }
+        }
+        return dist.toInt()
     }
 
     fun calcArea(): Int {
@@ -435,6 +461,10 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
         //runBlocking { sprite.step() }
     }
 
+    override fun weLost(): Boolean {
+        return hitStage > 0
+    }
+
     override fun showPercent(value: Int) {
         parent.showPercent(value)
     }
@@ -442,6 +472,9 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
     var hitStage = 0
     var hitPoint = Point(-1, -1)
     override fun showHit(p: Point) {
+        if(hitStage > 0) {
+            return
+        }
         hitStage = 1
         hitPoint = p
     }
@@ -485,10 +518,10 @@ class Arena(val parent: iShow) : Canvas(), iArena, iTargets {
                 playerGraph.color = Color.RED
                 playerGraph.stroke = java.awt.BasicStroke(2.0f)
                 playerGraph.drawPolyline(xs, ys, num)
-                val last = Point(xs[num-1], ys[num-1])
-                if(last != player.pos.xy) {
-                    playerGraph.drawLine(last.x, last.y, player.pos.xy.x, player.pos.xy.y)
-                }
+//                val last = Point(xs[num-1], ys[num-1])
+//                if(last != player.pos.xy) {
+//                    playerGraph.drawLine(last.x, last.y, player.pos.xy.x, player.pos.xy.y)
+//                }
             }
 
             // show areas
