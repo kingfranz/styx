@@ -109,6 +109,18 @@ fun Polygon(ps: List<Point>): Polygon {
     return Polygon(xs, ys, ps.size)
 }
 
+fun Polygon.area(): Int {
+    var sum = 0
+    for (y in bounds.y until bounds.y + bounds.height) {
+        for (x in bounds.x until bounds.x + bounds.width) {
+            if (contains(x, y)) {
+                sum++
+            }
+        }
+    }
+    return sum
+}
+
 fun List<Point>.str(): String {
     val sb = StringBuilder()
     for (i in 0 until size) {

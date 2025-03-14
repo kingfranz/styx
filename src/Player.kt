@@ -81,6 +81,7 @@ class Player(val parent: iArena) {
     var fastSpeed: Int = 10
     val pos = PlayerPos(parent)
     val joystick = Joystick()
+    val playerStrobe = BounceCount(10, 20, 1, 1)
 
     suspend fun reset() {
         pos.reset()
@@ -106,23 +107,23 @@ class Player(val parent: iArena) {
         }
     }
 
-    fun backOnEdge(speed: Vec) {
+    suspend fun backOnEdge(speed: Vec) {
         pos.endDraw()
         parent.showDrawMode(false)
-        if (parent.numLegs() > 0) {
+        if (parent.drawnLines.size > 0) {
             // we're on the edge
-            parent.addLeg(pos.xy, speed.direction())
+            parent.addWaypoint(pos.xy, speed.direction())
             parent.mkArea()
         } else {
             // false start
-            parent.clearLines()
+            parent.drawnLines.reset()
         }
     }
 
-    fun firstDraw(speed: Vec) {
+    suspend fun firstDraw(speed: Vec) {
         if (!pos.updateDrawXY(speed)) {
             // we're back on the edge
-            parent.addLeg(pos.xy, speed.direction())
+            parent.addWaypoint(pos.xy, speed.direction())
             pos.endDraw()
             parent.showDrawMode(false)
             parent.mkArea()
@@ -136,7 +137,7 @@ class Player(val parent: iArena) {
                 if (pos.onEdge()) {
                     backOnEdge(speed)
                 } else {
-                    val (lastPoint, lastDir) = parent.getLeg(parent.numLegs() - 1)
+                    val lastDir = parent.drawnLines[-1].direction()
                     if (speed.direction() == inverseDir(lastDir)) {
                         // reverse
                         return
@@ -144,14 +145,14 @@ class Player(val parent: iArena) {
                     if (speed.direction() == lastDir) {
                         // same direction
                         pos.updateDrawXY(speed)
-                        parent.addLeg(pos.xy, speed.direction())
+                        parent.addWaypoint(pos.xy, speed.direction())
                         return
                     }
                     // check minimum length before turning
-                    if (parent.countStraight() >= 30) {
+                    if (parent.drawnLines.countStraight() >= 30) {
                         // long enough
                         pos.updateDrawXY(speed)
-                        parent.addLeg(pos.xy, speed.direction())
+                        parent.addWaypoint(pos.xy, speed.direction())
                     } else {
                         // not long enough
                         return
@@ -165,11 +166,11 @@ class Player(val parent: iArena) {
                     pos.startDraw()
                     parent.showDrawMode(true)
                     // add start position
-                    parent.addLeg(pos.xy, speed.direction())
+                    parent.addWaypoint(pos.xy, speed.direction())
                     // move to new position
                     pos.updateDrawXY(speed)
                     // save new position
-                    parent.addLeg(pos.xy, speed.direction())
+                    parent.addWaypoint(pos.xy, speed.direction())
                 } else if(speed != Point(0, 0)) {
                     pos.updatePos(speed)
                 }
@@ -200,7 +201,6 @@ class Player(val parent: iArena) {
                                 } else {
                                     if (joystick.special) fastSpeed else normalSpeed
                                 }
-                                parent.showLvl(speed) // TODO move this
                                 val delta = mkVec(joystick.jsDir!!, speed)
                                 val realSpeed = validateMove(delta, pos.drawing || joystick.draw)
                                 move(realSpeed, joystick.draw)
@@ -224,30 +224,13 @@ class Player(val parent: iArena) {
         }
     }
 
-    var radius = 10
-    var down = true
-
     suspend fun draw(g: Graphics2D) {
         pos.mutex.withLock {
             // show player
             g.color = Color.RED
-            drawCircle(g, pos.xy.x, pos.xy.y, radius)
-            if(down && radius > 2) {
-                radius--
-            }
-            else if(down && radius <= 2) {
-                down = false
-                radius++
-            }
-            else if(!down && radius < 10) {
-                radius++
-            }
-            else if(!down && radius >= 10) {
-                down = true
-                radius--
-            }
+            drawCircle(g, pos.xy.x, pos.xy.y, playerStrobe())
             // show position
-            parent.showLoc(pos.posStr)
+            //parent.showLoc(pos.posStr)
         }
     }
 }

@@ -21,7 +21,7 @@ class ClientArea(): JPanel(), iShow {
     val lvlLbl = JLabel("Lvl:1")
     val scoreLbl = JLabel("Score:0")
     val drawLbl = JLabel("")
-    val locLbl = JLabel("")
+    val lifesLbl = JLabel("")
     val percentLbl = JLabel("0%")
     val arena = Arena(this)
     val topPanel = JPanel(FlowLayout())
@@ -37,15 +37,15 @@ class ClientArea(): JPanel(), iShow {
         scoreLbl.border = EmptyBorder(0, 20, 0, 20)
         drawLbl.font = uiFont
         drawLbl.border = EmptyBorder(0, 0, 0, 20)
-        locLbl.font = uiFont
-        locLbl.border = EmptyBorder(0, 0, 0, 20)
+        lifesLbl.font = uiFont
+        lifesLbl.border = EmptyBorder(0, 0, 0, 20)
         percentLbl.font = uiFont
         add(topPanel, BorderLayout.NORTH)
         topPanel.add(resetButton)
         topPanel.add(lvlLbl)
         topPanel.add(scoreLbl)
         topPanel.add(drawLbl)
-        topPanel.add(locLbl)
+        topPanel.add(lifesLbl)
         topPanel.add(percentLbl)
         add(arena, BorderLayout.CENTER)
         isVisible = true
@@ -77,7 +77,7 @@ class ClientArea(): JPanel(), iShow {
     }
 
     override fun showLvl(value: Int) {
-        lvlLbl.text = "Lvl:${value.toString()}"
+        lvlLbl.text = "Level:${value.toString()}"
     }
 
     override fun showScore(value: Int) {
@@ -88,8 +88,8 @@ class ClientArea(): JPanel(), iShow {
         drawLbl.text = if (active) "DRAW" else ""
     }
 
-    override fun showLoc(value: String) {
-        locLbl.text = value
+    override fun showLives(value: Int) {
+        lifesLbl.text = "Lifes:${value}"
     }
 
     override fun showPercent(value: Int) {

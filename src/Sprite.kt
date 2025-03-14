@@ -26,6 +26,7 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
     val tailMutex = Mutex(false) //
     var currentPoint = Point(500, 500) // middle of the lead segment
     var currentAngle = 0.0 // angle of the lead segment
+    val colorCycle = ColorCycle()
 
     suspend fun reset() {
         tailMutex.withLock {
@@ -67,7 +68,7 @@ class Sprite(val parent: Arena, val edgeSz: Int) {
             tail.addFirst(mkSegment(currentPoint,
                 currentAngle,
                 spriteSize,
-                ColorCycle.rndClr()))
+                colorCycle.rndClr()))
             if (tail.size > spriteLength) {
                 tail.removeLast()
             }
